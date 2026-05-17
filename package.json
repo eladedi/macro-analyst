@@ -7,12 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "db:migrate": "tsx --env-file=.env.local db/migrate.ts",
     "db:status": "tsx --env-file=.env.local db/migrate.ts status",
     "db:rollback": "tsx --env-file=.env.local db/rollback.ts",
     "db:smoke": "tsx --env-file=.env.local db/smoke.ts",
     "db:seed": "tsx --env-file=.env.local db/seed.ts",
-    "fetch:fred": "tsx --env-file=.env.local db/fetch-fred.ts"
+    "fetch:fred": "tsx --env-file=.env.local db/fetch-fred.ts",
+    "score:preview": "tsx --env-file=.env.local db/score-preview.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
@@ -36,6 +38,7 @@
     "prettier": "^3.8.3",
     "tailwindcss": "^4",
     "tsx": "^4.22.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.6"
   }
 }
