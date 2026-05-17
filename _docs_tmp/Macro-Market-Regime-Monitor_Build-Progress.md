@@ -1,7 +1,7 @@
 # Macro Market Regime Monitor — Build Progress
 
 **File name:** `Macro-Market-Regime-Monitor_Build-Progress.md`
-**Status:** Phases 0–3 complete · Phase 4 next
+**Status:** Phases 0–4 complete (Phase 4 verified, not yet committed) · Phase 5 next
 **Last updated:** 2026-05-17
 **Source of truth:** `Macro-Market-Regime-Monitor_Product-Brief.md` + `..._MVP-Technical-Spec-v0.1.md` + `..._Implementation-Roadmap.md`
 
@@ -13,10 +13,10 @@
 ## 1. Summary
 
 The project is a Next.js 16 app backed by a live Supabase Postgres database.
-Phases 0–3 of the 10-phase roadmap are done, committed, and pushed to
-`origin/main`. The database schema (14 tables) is live and seeded with the full
-default, editable configuration (categories, metrics, scoring rules, regime
-thresholds, AI prompt templates, settings).
+Phases 0–3 are committed and pushed to `origin/main`; Phase 4 is built and
+verified but not yet committed. The database schema (14 tables) is live and
+seeded with the full default, editable configuration, and real FRED data for
+the 9 FRED series is now flowing into `metric_values`.
 
 A user-requested feature beyond the original spec was added: an **"i" info
 button** on every metric and every dashboard category card.
@@ -37,10 +37,11 @@ Phase 10.
 | D7 | Dev DB hosting | Supabase cloud free tier |
 | D8 | Scoring rules | Seed conservative defaults per metric, user tunes in Settings |
 
+| D5 | FRED API key | Resolved — user added `FRED_API_KEY` to `.env.local` (Phase 4 verified) |
+
 **Still open (deferred until reached):**
 
 - **D4** — Market-data provider for DXY / equities / gold / silver (decided at Phase 9).
-- **D5** — FRED API key. User must place a free key in `.env.local` as `FRED_API_KEY` before Phase 4 can be verified.
 
 ---
 
@@ -133,7 +134,48 @@ User-requested, beyond the original spec docs.
 
 ---
 
-## 8. Git History
+## 8. Phase 4 — FRED Integration  (built + verified, NOT yet committed)
+
+- `lib/fetchers/fred.ts` — server-side FRED API client; fetches the latest
+  120 observations per series (covers >3M for Phase 5 change calc), drops
+  FRED `.` missing values, 15s network timeout.
+- `lib/fetchers/freshness.ts` — freshness (fresh ≤ window, delayed ≤ 2×,
+  stale beyond) + confidence per Spec §13/§14, judged against each metric's
+  `freshness_window_hours` so monthly series are not falsely stale.
+- `lib/fetchers/run-fred-fetch.ts` — orchestrator: loads the 9 enabled
+  FRED-sourced metrics, applies source-priority (primary → fallback →
+  unavailable, never a silent swap), upserts each metric's window into
+  `metric_values` in a single batched `unnest` statement.
+- `app/api/fetch/fred/route.ts` — server-only POST trigger, dynamic/nodejs
+  runtime, optional `AUTH_SECRET` header gate, key never sent to client.
+- `db/fetch-fred.ts` + `npm run fetch:fred` — CLI calling the same orchestrator.
+
+**Performance fix during build:** the first run hung doing ~1080 sequential
+single-row upserts over the remote Supabase pooler (one round-trip each).
+Persistence was rebuilt to batch each metric's window into one `unnest`
+statement (9 round-trips total) and a 15s FRED fetch timeout was added.
+
+**Verified on live FRED + Supabase:**
+
+- All 9 FRED series populated `metric_values` — 1063 rows, correct timestamps.
+- Freshness correct, no false stale on monthly: `m2` (2026-03-01) and
+  `fed_funds` (2026-04-01) read **delayed**, not stale. Daily series ~delayed
+  over the weekend gap; `fed_balance_sheet` **fresh**.
+- Idempotent: re-run kept 1063 rows, 0 duplicate
+  `(metric_id, timestamp, source_id)` groups (unique constraint holds).
+- Some series store <120 rows (us2y/us10y 116, vix 117, hy_oas 118) — correct,
+  FRED `.` missing values are filtered out.
+- API key only read server-side; route is dynamic, not statically rendered.
+- Typecheck + production build clean.
+
+**Note on what is testable now:** Phase 4 only fetches/stores. The
+dashboard/metrics pages still show "—"; wiring the UI to live values is
+**Phase 6**. Verify Phase 4 via `npm run fetch:fred`, the
+`POST /api/fetch/fred` endpoint, or by querying `metric_values` in Supabase.
+
+---
+
+## 9. Git History
 
 ```
 ba931f6  Phase 3: seed config + metric "i" info buttons
@@ -143,11 +185,12 @@ f5ff213  Phase 0: initialize Next.js 16 project with full stack setup
 f6caa23  Add Macro Market Regime Monitor spec documents
 ```
 
-All pushed to `origin/main` (https://github.com/eladedi/macro-analyst).
+Pushed to `origin/main` (https://github.com/eladedi/macro-analyst) through
+Phase 3. **Phase 4 is verified but not yet committed/pushed.**
 
 ---
 
-## 9. How to Run
+## 10. How to Run
 
 ```
 npm run dev          # dev server at http://localhost:3000
@@ -159,19 +202,19 @@ npm run db:status    # applied / pending migrations
 npm run db:rollback  # revert last migration
 npm run db:smoke     # insert/select every table, then roll back
 npm run db:seed      # idempotent seed + Phase 3 acceptance checks
+npm run fetch:fred   # fetch 9 FRED series into metric_values (idempotent)
 ```
 
-Scripts read `DATABASE_URL` from `.env.local` (gitignored).
+Scripts read `DATABASE_URL` and `FRED_API_KEY` from `.env.local` (gitignored).
 
 ---
 
-## 10. Next — Phase 4 (FRED Integration)
+## 11. Next — Phase 5 (Scoring Engine)
 
-**Goal:** fetch and persist real values for the 9 FRED series
-(`M2SL`, `WM2NS`, `WALCL`, `FEDFUNDS`, `DGS2`, `DGS10`, `T10Y2Y`,
-`BAMLH0A0HYM2`, `VIXCLS`) with source-priority + freshness handling into
-`metric_values`.
+**Goal:** turn the stored `metric_values` into scores — per-metric change
+calc (1D/1W/1M/3M), raw scores from `scoring_rules`, category scores, the
+final Market Score (0–100), the Oscillator (−100..+100), regime label, and
+trend vs the previous snapshot (Spec §10, §12, §14).
 
-**Blocker for verification:** decision **D5** — a free FRED API key must be in
-`.env.local` as `FRED_API_KEY`. Code can be written without it; the Phase 4
-acceptance run needs it.
+No external blockers — all inputs (seeded rules + real FRED data) are in the
+database.
