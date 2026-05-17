@@ -1,0 +1,182 @@
+import { PlaceholderBanner } from '@/components/ui/placeholder-banner'
+import { RegimeLabel } from '@/components/ui/regime-label'
+import { FreshnessBadge } from '@/components/ui/freshness-badge'
+import { ConfidenceBadge } from '@/components/ui/confidence-badge'
+import { CategoryCard } from '@/components/dashboard/category-card'
+
+const SNAPSHOT = {
+  marketScore: 63,
+  oscillatorValue: 26,
+  regimeLabel: 'Early Risk-On' as const,
+  trend: 'Improving',
+  confidence: 'medium' as const,
+  dataFreshness: 'delayed' as const,
+  lastUpdated: '—',
+}
+
+const CORE_CATEGORIES = [
+  { name: 'Liquidity', score: 1.8, weight: 16 },
+  { name: 'Credit', score: 0.9, weight: 14 },
+  { name: 'Rates', score: 1.2, weight: 12 },
+  { name: 'Dollar', score: 2.4, weight: 10 },
+  { name: 'Bonds / Yields', score: 0.4, weight: 10 },
+  { name: 'Equities', score: 1.7, weight: 8 },
+  { name: 'Market Breadth', score: -0.6, weight: 8 },
+  { name: 'Volatility', score: 2.2, weight: 8 },
+  { name: 'Yield Curve', score: -0.2, weight: 8 },
+]
+
+const SUPPORTING_CATEGORIES = [
+  { name: 'Commodities', score: 0.7, weight: 3 },
+  { name: 'Crypto', score: 1.1, weight: 2 },
+  { name: 'Sentiment', score: -0.8, weight: 1 },
+]
+
+const BIGGEST_IMPROVEMENTS = ['VIX falling (fear easing)', 'DXY weakening', 'S&P 500 trend improving']
+const BIGGEST_DETERIORATIONS = ['Market breadth remains weak', 'Sentiment moving toward greed']
+
+export default function DashboardPage() {
+  const osc = SNAPSHOT.oscillatorValue
+  const oscStr = osc > 0 ? `+${osc}` : String(osc)
+  const scoreBarPct = SNAPSHOT.marketScore
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <PlaceholderBanner />
+
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-200">Dashboard</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Last updated: {SNAPSHOT.lastUpdated}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <FreshnessBadge freshness={SNAPSHOT.dataFreshness} />
+          <ConfidenceBadge confidence={SNAPSHOT.confidence} />
+        </div>
+      </div>
+
+      {/* Score hero */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+          {/* Market Score */}
+          <div className="col-span-2 md:col-span-1">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Market Score</p>
+            <p className="text-5xl font-bold tabular-nums text-white">
+              {SNAPSHOT.marketScore}
+              <span className="text-2xl text-slate-500 font-normal"> / 100</span>
+            </p>
+            <div className="mt-3 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-emerald-500 opacity-80"
+                style={{ width: `${scoreBarPct}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Oscillator */}
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Oscillator</p>
+            <p className="text-4xl font-bold tabular-nums text-emerald-400">{oscStr}</p>
+            <p className="text-xs text-slate-500 mt-1">range −100 to +100</p>
+          </div>
+
+          {/* Regime */}
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Regime</p>
+            <RegimeLabel label={SNAPSHOT.regimeLabel} size="md" />
+            <p className="text-xs text-slate-400 mt-2">
+              Trend:{' '}
+              <span className="text-emerald-400 font-medium">{SNAPSHOT.trend}</span>
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-col gap-2 justify-center">
+            <button
+              disabled
+              className="w-full rounded-lg bg-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 opacity-50 cursor-not-allowed"
+              title="Available after Phase 6"
+            >
+              Refresh Market Snapshot
+            </button>
+            <button
+              disabled
+              className="w-full rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-400 opacity-50 cursor-not-allowed"
+              title="Available after Phase 8"
+            >
+              Generate AI Interpretation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Oscillator chart placeholder */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+          Macro Regime Oscillator — History
+        </p>
+        <div className="h-40 flex items-center justify-center rounded-lg bg-slate-800/50 border border-slate-800 border-dashed">
+          <p className="text-sm text-slate-600">Chart — Phase 7</p>
+        </div>
+      </div>
+
+      {/* Core categories */}
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Core Metrics</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {CORE_CATEGORIES.map((cat) => (
+            <CategoryCard key={cat.name} name={cat.name} score={cat.score} weight={cat.weight} isCore />
+          ))}
+        </div>
+      </div>
+
+      {/* Supporting categories */}
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Supporting Metrics</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {SUPPORTING_CATEGORIES.map((cat) => (
+            <CategoryCard key={cat.name} name={cat.name} score={cat.score} weight={cat.weight} />
+          ))}
+        </div>
+      </div>
+
+      {/* What Changed */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">What Changed?</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs font-medium text-emerald-500 mb-2">Biggest Improvements</p>
+            <ul className="space-y-1.5">
+              {BIGGEST_IMPROVEMENTS.map((s) => (
+                <li key={s} className="flex items-start gap-2 text-sm text-slate-300">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-red-400 mb-2">Biggest Deteriorations</p>
+            <ul className="space-y-1.5">
+              {BIGGEST_DETERIORATIONS.map((s) => (
+                <li key={s} className="flex items-start gap-2 text-sm text-slate-300">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Interpretation */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">AI Interpretation</p>
+        <div className="flex items-center justify-center h-16 rounded-lg bg-slate-800/30 border border-slate-800 border-dashed">
+          <p className="text-sm text-slate-600">Generated on demand — click &ldquo;Generate AI Interpretation&rdquo;</p>
+        </div>
+      </div>
+    </div>
+  )
+}
