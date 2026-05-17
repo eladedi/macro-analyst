@@ -1,7 +1,11 @@
+import { MetricInfo } from '@/components/ui/metric-info'
+
 interface Props {
   name: string
+  description: string
   score: number | null
   weight: number
+  metrics: { name: string; source: string; symbol: string }[]
   isCore?: boolean
 }
 
@@ -19,7 +23,7 @@ function scoreBar(score: number | null) {
   return Math.round(((score + 5) / 10) * 100)
 }
 
-export function CategoryCard({ name, score, weight }: Props) {
+export function CategoryCard({ name, description, score, weight, metrics }: Props) {
   const color = scoreColor(score)
   const barPct = scoreBar(score)
   const scoreStr = score === null ? '—' : score > 0 ? `+${score.toFixed(1)}` : score.toFixed(1)
@@ -27,7 +31,10 @@ export function CategoryCard({ name, score, weight }: Props) {
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-200">{name}</p>
+        <span className="inline-flex items-center gap-1.5">
+          <p className="text-sm font-medium text-slate-200">{name}</p>
+          <MetricInfo metricName={name} description={description} metrics={metrics} />
+        </span>
         <span className="text-xs text-slate-500">{weight}%</span>
       </div>
       <div className="flex items-end justify-between">

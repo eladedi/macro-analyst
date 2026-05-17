@@ -3,6 +3,7 @@ import { RegimeLabel } from '@/components/ui/regime-label'
 import { FreshnessBadge } from '@/components/ui/freshness-badge'
 import { ConfidenceBadge } from '@/components/ui/confidence-badge'
 import { CategoryCard } from '@/components/dashboard/category-card'
+import { categories, metrics as allMetrics, dataSources } from '@/config/seed-data'
 
 const SNAPSHOT = {
   marketScore: 63,
@@ -14,23 +15,38 @@ const SNAPSHOT = {
   lastUpdated: '—',
 }
 
-const CORE_CATEGORIES = [
-  { name: 'Liquidity', score: 1.8, weight: 16 },
-  { name: 'Credit', score: 0.9, weight: 14 },
-  { name: 'Rates', score: 1.2, weight: 12 },
-  { name: 'Dollar', score: 2.4, weight: 10 },
-  { name: 'Bonds / Yields', score: 0.4, weight: 10 },
-  { name: 'Equities', score: 1.7, weight: 8 },
-  { name: 'Market Breadth', score: -0.6, weight: 8 },
-  { name: 'Volatility', score: 2.2, weight: 8 },
-  { name: 'Yield Curve', score: -0.2, weight: 8 },
-]
+// Placeholder category scores (real scores arrive in Phase 5).
+const PLACEHOLDER_SCORES: Record<string, number> = {
+  liquidity: 1.8, credit: 0.9, rates: 1.2, dollar: 2.4, bonds: 0.4,
+  equities: 1.7, breadth: -0.6, volatility: 2.2, yield_curve: -0.2,
+  commodities: 0.7, crypto: 1.1, sentiment: -0.8,
+}
 
-const SUPPORTING_CATEGORIES = [
-  { name: 'Commodities', score: 0.7, weight: 3 },
-  { name: 'Crypto', score: 1.1, weight: 2 },
-  { name: 'Sentiment', score: -0.8, weight: 1 },
-]
+const srcShort = new Map(dataSources.map((s) => [s.id, s.name.split(' (')[0]]))
+
+const metricsByCategory = (categoryId: string) =>
+  allMetrics
+    .filter((m) => m.category_id === categoryId)
+    .sort((a, b) => a.display_order - b.display_order)
+    .map((m) => ({
+      name: m.name,
+      source: srcShort.get(m.source_primary_id) ?? m.source_primary_id,
+      symbol: m.source_symbol,
+    }))
+
+const cards = [...categories]
+  .sort((a, b) => a.display_order - b.display_order)
+  .map((c) => ({
+    name: c.name,
+    description: c.description,
+    weight: Math.round(c.weight * 100),
+    score: PLACEHOLDER_SCORES[c.id] ?? null,
+    isCore: c.is_core,
+    metrics: metricsByCategory(c.id),
+  }))
+
+const CORE_CATEGORIES = cards.filter((c) => c.isCore)
+const SUPPORTING_CATEGORIES = cards.filter((c) => !c.isCore)
 
 const BIGGEST_IMPROVEMENTS = ['VIX falling (fear easing)', 'DXY weakening', 'S&P 500 trend improving']
 const BIGGEST_DETERIORATIONS = ['Market breadth remains weak', 'Sentiment moving toward greed']
@@ -126,7 +142,15 @@ export default function DashboardPage() {
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Core Metrics</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {CORE_CATEGORIES.map((cat) => (
-            <CategoryCard key={cat.name} name={cat.name} score={cat.score} weight={cat.weight} isCore />
+            <CategoryCard
+              key={cat.name}
+              name={cat.name}
+              description={cat.description}
+              score={cat.score}
+              weight={cat.weight}
+              metrics={cat.metrics}
+              isCore
+            />
           ))}
         </div>
       </div>
@@ -136,7 +160,14 @@ export default function DashboardPage() {
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Supporting Metrics</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {SUPPORTING_CATEGORIES.map((cat) => (
-            <CategoryCard key={cat.name} name={cat.name} score={cat.score} weight={cat.weight} />
+            <CategoryCard
+              key={cat.name}
+              name={cat.name}
+              description={cat.description}
+              score={cat.score}
+              weight={cat.weight}
+              metrics={cat.metrics}
+            />
           ))}
         </div>
       </div>

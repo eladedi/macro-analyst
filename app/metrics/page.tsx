@@ -1,39 +1,20 @@
 import { PlaceholderBanner } from '@/components/ui/placeholder-banner'
-import { FreshnessBadge } from '@/components/ui/freshness-badge'
 import { ConfidenceBadge } from '@/components/ui/confidence-badge'
+import { MetricInfo } from '@/components/ui/metric-info'
+import { metrics, categories, dataSources } from '@/config/seed-data'
 
-const PLACEHOLDER_METRICS = [
-  { category: 'Liquidity', name: 'M2 Money Supply', value: '—', unit: '$T', trend: 'Up', score: 2, catWeight: 16, metricWeight: 30, contribution: '+0.096', source: 'FRED: M2SL', freshness: 'stale', confidence: 'high' },
-  { category: 'Liquidity', name: 'Weekly M2', value: '—', unit: '$T', trend: 'Up', score: 1, catWeight: 16, metricWeight: 20, contribution: '+0.032', source: 'FRED: WM2NS', freshness: 'stale', confidence: 'high' },
-  { category: 'Liquidity', name: 'Fed Balance Sheet', value: '—', unit: '$T', trend: 'Down', score: -1, catWeight: 16, metricWeight: 20, contribution: '-0.032', source: 'FRED: WALCL', freshness: 'stale', confidence: 'high' },
-  { category: 'Rates', name: 'Fed Funds Rate', value: '—', unit: '%', trend: 'Flat', score: 0, catWeight: 12, metricWeight: 50, contribution: '0.000', source: 'FRED: FEDFUNDS', freshness: 'stale', confidence: 'high' },
-  { category: 'Rates', name: '2Y Treasury Yield', value: '—', unit: '%', trend: 'Down', score: 1, catWeight: 12, metricWeight: 50, contribution: '+0.060', source: 'FRED: DGS2', freshness: 'stale', confidence: 'high' },
-  { category: 'Bonds / Yields', name: '10Y Treasury Yield', value: '—', unit: '%', trend: 'Flat', score: 0, catWeight: 10, metricWeight: 100, contribution: '0.000', source: 'FRED: DGS10', freshness: 'stale', confidence: 'high' },
-  { category: 'Yield Curve', name: '10Y-2Y Spread', value: '—', unit: 'bps', trend: 'Up', score: 1, catWeight: 8, metricWeight: 100, contribution: '+0.080', source: 'FRED: T10Y2Y', freshness: 'stale', confidence: 'high' },
-  { category: 'Credit', name: 'High Yield OAS', value: '—', unit: 'bps', trend: 'Down', score: 2, catWeight: 14, metricWeight: 100, contribution: '+0.280', source: 'FRED: BAMLH0A0HYM2', freshness: 'stale', confidence: 'high' },
-  { category: 'Volatility', name: 'VIX', value: '—', unit: 'index', trend: 'Down', score: 2, catWeight: 8, metricWeight: 70, contribution: '+0.112', source: 'FRED: VIXCLS', freshness: 'stale', confidence: 'high' },
-  { category: 'Dollar', name: 'DXY', value: '—', unit: 'index', trend: 'Down', score: 2, catWeight: 10, metricWeight: 100, contribution: '+0.200', source: 'Market data', freshness: 'stale', confidence: 'medium' },
-  { category: 'Equities', name: 'S&P 500', value: '—', unit: 'index', trend: 'Up', score: 2, catWeight: 8, metricWeight: 50, contribution: '+0.080', source: 'Market data', freshness: 'stale', confidence: 'medium' },
-  { category: 'Equities', name: 'Nasdaq 100', value: '—', unit: 'index', trend: 'Up', score: 1, catWeight: 8, metricWeight: 30, contribution: '+0.024', source: 'Market data', freshness: 'stale', confidence: 'medium' },
-  { category: 'Equities', name: 'Russell 2000', value: '—', unit: 'index', trend: 'Flat', score: 0, catWeight: 8, metricWeight: 20, contribution: '0.000', source: 'Market data', freshness: 'stale', confidence: 'medium' },
-  { category: 'Commodities', name: 'Gold', value: '—', unit: 'USD', trend: 'Up', score: 1, catWeight: 3, metricWeight: 50, contribution: '+0.015', source: 'Market data', freshness: 'stale', confidence: 'medium' },
-  { category: 'Commodities', name: 'Silver', value: '—', unit: 'USD', trend: 'Up', score: 1, catWeight: 3, metricWeight: 50, contribution: '+0.015', source: 'Market data', freshness: 'stale', confidence: 'medium' },
-  { category: 'Crypto', name: 'BTC', value: '—', unit: 'USD', trend: 'Up', score: 2, catWeight: 2, metricWeight: 60, contribution: '+0.024', source: 'CoinGecko', freshness: 'stale', confidence: 'medium' },
-  { category: 'Crypto', name: 'ETH', value: '—', unit: 'USD', trend: 'Up', score: 1, catWeight: 2, metricWeight: 40, contribution: '+0.008', source: 'CoinGecko', freshness: 'stale', confidence: 'medium' },
-]
+const catById = new Map(categories.map((c) => [c.id, c]))
+const srcById = new Map(dataSources.map((s) => [s.id, s]))
 
-function scoreColor(score: number) {
-  if (score >= 2) return 'text-emerald-400'
-  if (score >= 0) return 'text-green-400'
-  if (score >= -2) return 'text-orange-400'
-  return 'text-red-400'
-}
+const rows = [...metrics]
+  .sort((a, b) => a.display_order - b.display_order)
+  .map((m) => {
+    const cat = catById.get(m.category_id)!
+    const src = srcById.get(m.source_primary_id)!
+    return { m, cat, src }
+  })
 
-function trendColor(trend: string) {
-  if (trend === 'Up') return 'text-emerald-400'
-  if (trend === 'Down') return 'text-red-400'
-  return 'text-slate-400'
-}
+const pct = (n: number) => `${Math.round(n * 100)}%`
 
 export default function MetricsPage() {
   return (
@@ -42,7 +23,9 @@ export default function MetricsPage() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-200">Metrics</h1>
-        <p className="text-xs text-slate-500">{PLACEHOLDER_METRICS.length} metrics — values populate after Phase 4</p>
+        <p className="text-xs text-slate-500">
+          {metrics.length} metrics across {categories.length} categories — values populate after Phase 4
+        </p>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-800">
@@ -50,39 +33,54 @@ export default function MetricsPage() {
           <thead>
             <tr className="border-b border-slate-800 bg-slate-900/80">
               {[
-                'Category', 'Metric', 'Value', 'Unit', 'Trend',
-                'Score', 'Cat. Wt.', 'Metric Wt.', 'Contribution',
-                'Source', 'Freshness', 'Confidence', 'Explain',
+                'Category', 'Metric', 'Value', 'Unit', 'Cat. Wt.', 'Metric Wt.',
+                'Automation', 'Frequency', 'Source', 'Confidence', 'Explain',
               ].map((h) => (
-                <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                <th
+                  key={h}
+                  className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap"
+                >
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {PLACEHOLDER_METRICS.map((m, i) => (
+            {rows.map(({ m, cat, src }) => (
               <tr
-                key={i}
+                key={m.id}
                 className="border-b border-slate-800/60 bg-slate-950 hover:bg-slate-900/50 transition-colors"
               >
-                <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap">{m.category}</td>
-                <td className="px-3 py-3 font-medium text-slate-200 whitespace-nowrap">{m.name}</td>
-                <td className="px-3 py-3 tabular-nums text-slate-400">{m.value}</td>
+                <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap">{cat.name}</td>
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="font-medium text-slate-200">{m.name}</span>
+                    <MetricInfo
+                      metricName={m.name}
+                      description={m.description}
+                      source={{
+                        name: src.name,
+                        type: src.type,
+                        symbol: m.source_symbol,
+                        reliability: src.reliability,
+                        baseUrl: src.base_url,
+                        enabled: src.enabled,
+                      }}
+                    />
+                  </span>
+                </td>
+                <td className="px-3 py-3 tabular-nums text-slate-600">—</td>
                 <td className="px-3 py-3 text-slate-500">{m.unit}</td>
-                <td className={`px-3 py-3 font-medium ${trendColor(m.trend)}`}>{m.trend}</td>
-                <td className={`px-3 py-3 font-bold tabular-nums ${scoreColor(m.score)}`}>
-                  {m.score > 0 ? `+${m.score}` : m.score}
-                </td>
-                <td className="px-3 py-3 tabular-nums text-slate-500">{m.catWeight}%</td>
-                <td className="px-3 py-3 tabular-nums text-slate-500">{m.metricWeight}%</td>
-                <td className="px-3 py-3 tabular-nums text-slate-400">{m.contribution}</td>
-                <td className="px-3 py-3 text-slate-500 whitespace-nowrap text-xs">{m.source}</td>
-                <td className="px-3 py-3">
-                  <FreshnessBadge freshness={m.freshness as 'fresh' | 'delayed' | 'stale' | 'manual'} />
+                <td className="px-3 py-3 tabular-nums text-slate-500">{pct(cat.weight)}</td>
+                <td className="px-3 py-3 tabular-nums text-slate-500">{pct(m.metric_weight)}</td>
+                <td className="px-3 py-3 text-slate-400 capitalize">{m.automation_status}</td>
+                <td className="px-3 py-3 text-slate-400 capitalize">{m.expected_frequency}</td>
+                <td className="px-3 py-3 text-slate-500 whitespace-nowrap text-xs">
+                  {src.name.split(' (')[0]}
+                  <span className="ml-1 font-mono text-slate-600">{m.source_symbol}</span>
                 </td>
                 <td className="px-3 py-3">
-                  <ConfidenceBadge confidence={m.confidence as 'high' | 'medium' | 'low'} />
+                  <ConfidenceBadge confidence={m.confidence_default} />
                 </td>
                 <td className="px-3 py-3">
                   <button

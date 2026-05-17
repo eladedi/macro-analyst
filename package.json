@@ -10,7 +10,8 @@
     "db:migrate": "tsx --env-file=.env.local db/migrate.ts",
     "db:status": "tsx --env-file=.env.local db/migrate.ts status",
     "db:rollback": "tsx --env-file=.env.local db/rollback.ts",
-    "db:smoke": "tsx --env-file=.env.local db/smoke.ts"
+    "db:smoke": "tsx --env-file=.env.local db/smoke.ts",
+    "db:seed": "tsx --env-file=.env.local db/seed.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
