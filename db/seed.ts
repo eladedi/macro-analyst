@@ -80,6 +80,15 @@ async function main() {
             updated_at=now()`
       }
 
+      // Remove data sources no longer in the seed set (e.g. coingecko /
+      // market_data after the D4 consolidation). Safe after metrics are
+      // repointed and only if nothing in metric_values still references them.
+      const keepSourceIds = dataSources.map((d) => d.id)
+      await tx`
+        DELETE FROM data_sources
+        WHERE id <> ALL(${tx.array(keepSourceIds)}::text[])
+          AND id NOT IN (SELECT DISTINCT source_id FROM metric_values)`
+
       // Keyless config — replace wholesale for a clean idempotent state.
       await tx`DELETE FROM scoring_rules`
       for (const r of scoringRules) {

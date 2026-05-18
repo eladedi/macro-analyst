@@ -1,13 +1,14 @@
 /**
  * Refresh orchestrator — the core MVP loop (Spec §15.3, 14 steps):
- * FRED fetch → load → score → what-changed → persist snapshot → payload.
+ * fetch (FRED + Twelve Data) → load → score → what-changed → persist → payload.
  *
- * FRED failures are non-fatal: scoring proceeds on whatever is already in
- * metric_values (the failure is surfaced in the server log), so a transient
- * FRED outage still produces a snapshot from the last good data.
+ * Fetch failures are non-fatal: scoring proceeds on whatever is already in
+ * metric_values (failures surfaced in the server log), so a transient
+ * provider outage still produces a snapshot from the last good data.
  */
 import { sql } from '../db'
 import { runFredFetch } from '../fetchers/run-fred-fetch'
+import { runTwelveDataFetch } from '../fetchers/run-twelvedata-fetch'
 import { loadEngineInputs } from './load-inputs'
 import { computeSnapshot } from '../scoring/compute-snapshot'
 import { whatChanged, type WhatChanged } from './what-changed'
@@ -55,6 +56,18 @@ export async function refreshSnapshot(): Promise<RefreshPayload> {
     }
   } catch (e) {
     console.error('refresh: FRED fetch threw, proceeding on existing data:', e)
+  }
+
+  try {
+    const td = await runTwelveDataFetch()
+    if (td.failed > 0) {
+      console.warn(
+        `refresh: Twelve Data fetch had ${td.failed}/${td.total} failures:`,
+        td.results.filter((r) => !r.ok).map((r) => `${r.metricId}: ${r.error}`)
+      )
+    }
+  } catch (e) {
+    console.error('refresh: Twelve Data fetch threw, proceeding on existing data:', e)
   }
 
   // Steps 5–12: load + compute.

@@ -107,24 +107,15 @@ export const dataSources: SeedDataSource[] = [
     enabled: true,
   },
   {
-    id: 'coingecko',
-    name: 'CoinGecko',
+    id: 'twelve_data',
+    name: 'Twelve Data',
     type: 'api',
-    base_url: 'https://api.coingecko.com/api/v3',
-    requires_api_key: false,
-    reliability: 'medium',
-    notes: 'Crypto spot prices. Free tier, rate-limited.',
-    enabled: true,
-  },
-  {
-    id: 'market_data',
-    name: 'Market Data Provider (pending)',
-    type: 'api',
-    base_url: null,
+    base_url: 'https://api.twelvedata.com',
     requires_api_key: true,
-    reliability: 'medium',
-    notes: 'Provider choice deferred to Phase 9 (decision D4). Used for DXY, equity indices, gold, silver.',
-    enabled: false,
+    reliability: 'high',
+    notes:
+      'D4: single provider for all non-FRED metrics — DXY, equity indices, gold, silver, BTC, ETH. Free tier 800 req/day, 8 req/min.',
+    enabled: true,
   },
 ]
 
@@ -225,56 +216,56 @@ export const metrics: SeedMetric[] = [
   {
     id: 'dxy', category_id: 'dollar', name: 'DXY (Dollar Index)', slug: 'dxy',
     description:
-      'US Dollar Index versus a basket of major currencies. A strong or rising dollar tightens global liquidity and tends to pressure risk assets, especially emerging markets and commodities.',
-    unit: 'index', source_primary_id: 'market_data', source_fallback_id: null, source_symbol: 'DXY',
-    metric_weight: 1.0, automation_status: 'semi', expected_frequency: 'daily',
+      'US Dollar Index versus a basket of major currencies. A strong or rising dollar tightens global liquidity and pressures risk assets. Tracked via the UUP ETF (Invesco DB USD Bullish) on the Twelve Data free tier — moves directionally with DXY; scoring uses % change, so the regime signal is preserved.',
+    unit: 'index', source_primary_id: 'twelve_data', source_fallback_id: null, source_symbol: 'UUP',
+    metric_weight: 1.0, automation_status: 'automatic', expected_frequency: 'daily',
     freshness_window_hours: 48, confidence_default: 'medium', chart_type: 'line', display_order: 10,
   },
   {
     id: 'sp500', category_id: 'equities', name: 'S&P 500', slug: 'sp500',
     description:
-      'Broad US large-cap equity index — the core read on equity-market health and overall risk appetite.',
-    unit: 'index', source_primary_id: 'market_data', source_fallback_id: null, source_symbol: '^GSPC',
-    metric_weight: 0.5, automation_status: 'semi', expected_frequency: 'daily',
+      'Broad US large-cap equity index — the core read on equity-market health and overall risk appetite. Tracked via the SPY ETF on the Twelve Data free tier (raw SPX is paid-plan only); SPY tracks the S&P 500 ~1:1 and scoring uses % change, so the regime signal is preserved.',
+    unit: 'index', source_primary_id: 'twelve_data', source_fallback_id: null, source_symbol: 'SPY',
+    metric_weight: 0.5, automation_status: 'automatic', expected_frequency: 'daily',
     freshness_window_hours: 48, confidence_default: 'medium', chart_type: 'line', display_order: 11,
   },
   {
     id: 'ndx', category_id: 'equities', name: 'Nasdaq 100', slug: 'ndx',
     description:
-      'US large-cap growth/technology index. Duration- and risk-sensitive — leads on the way up in risk-on regimes and tends to fall hardest in risk-off.',
-    unit: 'index', source_primary_id: 'market_data', source_fallback_id: null, source_symbol: '^NDX',
-    metric_weight: 0.3, automation_status: 'semi', expected_frequency: 'daily',
+      'US large-cap growth/technology index. Duration- and risk-sensitive — leads in risk-on, falls hardest in risk-off. Tracked via the QQQ ETF on the Twelve Data free tier (raw NDX is paid-plan only); QQQ tracks the Nasdaq 100 ~1:1 and scoring uses % change.',
+    unit: 'index', source_primary_id: 'twelve_data', source_fallback_id: null, source_symbol: 'QQQ',
+    metric_weight: 0.3, automation_status: 'automatic', expected_frequency: 'daily',
     freshness_window_hours: 48, confidence_default: 'medium', chart_type: 'line', display_order: 12,
   },
   {
     id: 'rut', category_id: 'equities', name: 'Russell 2000', slug: 'rut',
     description:
-      'US small-cap index. Sensitive to domestic growth and financial conditions; a useful read on the breadth and quality of a risk-on move.',
-    unit: 'index', source_primary_id: 'market_data', source_fallback_id: null, source_symbol: '^RUT',
-    metric_weight: 0.2, automation_status: 'semi', expected_frequency: 'daily',
+      'US small-cap index. Sensitive to domestic growth and financial conditions; a read on the breadth/quality of a risk-on move. Tracked via the IWM ETF on the Twelve Data free tier (raw RUT is paid-plan only); IWM tracks the Russell 2000 ~1:1 and scoring uses % change.',
+    unit: 'index', source_primary_id: 'twelve_data', source_fallback_id: null, source_symbol: 'IWM',
+    metric_weight: 0.2, automation_status: 'automatic', expected_frequency: 'daily',
     freshness_window_hours: 48, confidence_default: 'medium', chart_type: 'line', display_order: 13,
   },
   {
     id: 'gold', category_id: 'commodities', name: 'Gold', slug: 'gold',
     description:
       'Spot gold price. Acts as an inflation hedge, a fear hedge, and is sensitive to the dollar and real yields.',
-    unit: 'USD', source_primary_id: 'market_data', source_fallback_id: null, source_symbol: 'XAUUSD',
-    metric_weight: 0.5, automation_status: 'semi', expected_frequency: 'daily',
+    unit: 'USD', source_primary_id: 'twelve_data', source_fallback_id: null, source_symbol: 'XAU/USD',
+    metric_weight: 0.5, automation_status: 'automatic', expected_frequency: 'daily',
     freshness_window_hours: 48, confidence_default: 'medium', chart_type: 'line', display_order: 14,
   },
   {
     id: 'silver', category_id: 'commodities', name: 'Silver', slug: 'silver',
     description:
-      'Spot silver price. Behaves like gold but with greater industrial and cyclical sensitivity, so it carries more growth signal.',
-    unit: 'USD', source_primary_id: 'market_data', source_fallback_id: null, source_symbol: 'XAGUSD',
-    metric_weight: 0.5, automation_status: 'semi', expected_frequency: 'daily',
+      'Silver price. Behaves like gold but with greater industrial/cyclical sensitivity, so it carries more growth signal. Tracked via the SLV ETF on the Twelve Data free tier (XAG/USD is paid-plan only); SLV tracks spot silver ~1:1 and scoring uses % change.',
+    unit: 'USD', source_primary_id: 'twelve_data', source_fallback_id: null, source_symbol: 'SLV',
+    metric_weight: 0.5, automation_status: 'automatic', expected_frequency: 'daily',
     freshness_window_hours: 48, confidence_default: 'medium', chart_type: 'line', display_order: 15,
   },
   {
     id: 'btc', category_id: 'crypto', name: 'BTC', slug: 'btc',
     description:
       'Bitcoin price — a high-beta read on speculative risk appetite and crypto liquidity. Often leads broader risk sentiment at the margin.',
-    unit: 'USD', source_primary_id: 'coingecko', source_fallback_id: null, source_symbol: 'bitcoin',
+    unit: 'USD', source_primary_id: 'twelve_data', source_fallback_id: null, source_symbol: 'BTC/USD',
     metric_weight: 0.6, automation_status: 'automatic', expected_frequency: 'daily',
     freshness_window_hours: 48, confidence_default: 'medium', chart_type: 'line', display_order: 16,
   },
@@ -282,7 +273,7 @@ export const metrics: SeedMetric[] = [
     id: 'eth', category_id: 'crypto', name: 'ETH', slug: 'eth',
     description:
       'Ethereum price. Speculative risk-appetite gauge, highly correlated with BTC but typically with more cyclical amplitude.',
-    unit: 'USD', source_primary_id: 'coingecko', source_fallback_id: null, source_symbol: 'ethereum',
+    unit: 'USD', source_primary_id: 'twelve_data', source_fallback_id: null, source_symbol: 'ETH/USD',
     metric_weight: 0.4, automation_status: 'automatic', expected_frequency: 'daily',
     freshness_window_hours: 48, confidence_default: 'medium', chart_type: 'line', display_order: 17,
   },
