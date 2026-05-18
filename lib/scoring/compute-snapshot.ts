@@ -34,6 +34,10 @@ export interface EngineMetricInput {
   changes: Changes | null
   freshness: Freshness
   confidence: ConfidenceLevel
+  /** Manual override (Spec §8.14) — forces the raw score, bypassing rules. */
+  scoreOverride?: { score: number; reason: string } | null
+  /** Manual 'note' override — annotation only, does not affect scoring. */
+  note?: string | null
 }
 
 export interface EngineParams {
@@ -56,6 +60,7 @@ export interface ComputedMetric {
   changes: Changes | null
   freshness: Freshness
   confidence: ConfidenceLevel
+  note?: string | null
 }
 
 export interface ComputedCategory {
@@ -94,9 +99,15 @@ export function computeSnapshot(params: EngineParams): ComputedSnapshot {
     const cat = enabledCategories.get(m.categoryId)
     if (!m.enabled || !cat) continue
 
-    const { score, reason } = m.changes
-      ? applyScoringRule(m.ruleConfig, m.changes)
-      : { score: m.ruleConfig.fallback_score, reason: 'no input data' }
+    // Manual score override (Spec §8.14) wins over the rule, clamped to ±5.
+    const { score, reason } = m.scoreOverride
+      ? {
+          score: Math.min(5, Math.max(-5, m.scoreOverride.score)),
+          reason: `override: ${m.scoreOverride.reason}`,
+        }
+      : m.changes
+        ? applyScoringRule(m.ruleConfig, m.changes)
+        : { score: m.ruleConfig.fallback_score, reason: 'no input data' }
 
     computedMetrics.push({
       metricId: m.metricId,
@@ -111,6 +122,7 @@ export function computeSnapshot(params: EngineParams): ComputedSnapshot {
       changes: m.changes,
       freshness: m.freshness,
       confidence: m.confidence,
+      note: m.note ?? null,
     })
   }
 

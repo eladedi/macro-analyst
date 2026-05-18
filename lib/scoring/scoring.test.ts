@@ -192,3 +192,39 @@ describe('disabled metrics/categories excluded from weighting', () => {
     expect(snap.categoryScores.find((c) => c.categoryId === 'b')?.rawCategoryScore).toBeNull()
   })
 })
+
+describe('manual overrides (Spec §8.14)', () => {
+  const base = (extra: Partial<EngineParams['metrics'][number]>): EngineParams => ({
+    regimeBands: regimeThresholds,
+    previousMarketScore: null,
+    categories: [{ categoryId: 'a', name: 'A', weight: 1, enabled: true }],
+    metrics: [
+      {
+        metricId: 'a1', name: 'A1', categoryId: 'a', metricWeight: 1, enabled: true,
+        ruleConfig: { score_range: [-5, 5], input: 'value', fallback_score: 0, rules: [{ operator: '>=', value: 0, score: 4, label: 'rule' }] },
+        changes: computeChanges([{ timestamp: '2026-05-15', value: 10 }]),
+        freshness: 'fresh', confidence: 'high',
+        ...extra,
+      },
+    ],
+  })
+
+  it('score override bypasses the rule and is clamped to ±5', () => {
+    const snap = computeSnapshot(base({ scoreOverride: { score: 99, reason: 'manual call' } }))
+    const m = snap.metrics[0]
+    expect(m.rawScore).toBe(5) // clamped
+    expect(m.reason).toBe('override: manual call')
+  })
+
+  it('weight override changes the metric contribution', () => {
+    const snap = computeSnapshot(base({ metricWeight: 0.25 }))
+    // single metric, category weight 1 → contribution = rawScore(4) * 0.25 * 1
+    expect(snap.metrics[0].weightedContribution).toBeCloseTo(1, 6)
+  })
+
+  it('note override is annotation-only (does not affect score)', () => {
+    const snap = computeSnapshot(base({ note: 'watch this' }))
+    expect(snap.metrics[0].rawScore).toBe(4)
+    expect(snap.metrics[0].note).toBe('watch this')
+  })
+})

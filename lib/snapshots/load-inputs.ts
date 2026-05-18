@@ -81,9 +81,30 @@ export async function loadEngineInputs(sql: Sql): Promise<LoadedInputs> {
     latest.set(v.metric_id, { id: v.id, freshness: v.freshness, confidence: v.confidence })
   }
 
+  // Manual overrides (Spec §8.14) — enabled rows, later wins per type.
+  const ovRows = await sql<
+    { metric_id: string; override_type: string; override_value: unknown; reason: string | null }[]
+  >`
+    SELECT metric_id, override_type, override_value, reason
+    FROM manual_overrides WHERE enabled = true ORDER BY created_at`
+  const overrideByMetric = new Map<
+    string,
+    { metricWeight?: number; scoreOverride?: { score: number; reason: string }; note?: string }
+  >()
+  for (const o of ovRows) {
+    const cur = overrideByMetric.get(o.metric_id) ?? {}
+    if (o.override_type === 'weight') cur.metricWeight = Number(o.override_value)
+    else if (o.override_type === 'score')
+      cur.scoreOverride = { score: Number(o.override_value), reason: o.reason ?? 'manual override' }
+    else if (o.override_type === 'note') cur.note = String(o.override_value ?? o.reason ?? '')
+    // 'value' overrides are accepted/stored but not applied in MVP.
+    overrideByMetric.set(o.metric_id, cur)
+  }
+
   const metricMeta = new Map<string, MetricMeta>()
   const metrics: EngineMetricInput[] = metricRows.map((m) => {
     const q = latest.get(m.id)
+    const ov = overrideByMetric.get(m.id)
     metricMeta.set(m.id, {
       sourceId: m.source_primary_id,
       sourceName: sourceName.get(m.source_primary_id) ?? m.source_primary_id,
@@ -94,12 +115,14 @@ export async function loadEngineInputs(sql: Sql): Promise<LoadedInputs> {
       metricId: m.id,
       name: m.name,
       categoryId: m.category_id,
-      metricWeight: m.metric_weight,
+      metricWeight: ov?.metricWeight ?? m.metric_weight,
       enabled: m.enabled,
       ruleConfig: ruleByMetric.get(m.id) as RuleConfig,
       changes: computeChanges(obsByMetric.get(m.id) ?? []),
       freshness: q?.freshness ?? 'stale',
       confidence: q?.confidence ?? 'low',
+      scoreOverride: ov?.scoreOverride ?? null,
+      note: ov?.note ?? null,
     }
   })
 

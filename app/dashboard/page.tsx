@@ -6,6 +6,7 @@ import { RegimeLabel } from '@/components/ui/regime-label'
 import { FreshnessBadge } from '@/components/ui/freshness-badge'
 import { ConfidenceBadge } from '@/components/ui/confidence-badge'
 import { CategoryCard } from '@/components/dashboard/category-card'
+import { LineChart, type ChartSeries } from '@/components/charts/line-chart'
 import { categories, metrics as allMetrics, dataSources } from '@/config/seed-data'
 
 interface SnapshotDetail {
@@ -49,12 +50,20 @@ async function fetchLatest(): Promise<SnapshotDetail | null> {
   return res.json()
 }
 
+interface SnapshotRow { created_at: string; market_score: number; oscillator_value: number }
+async function fetchHistory(): Promise<SnapshotRow[]> {
+  const res = await fetch('/api/snapshots?limit=100')
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return (await res.json()).snapshots as SnapshotRow[]
+}
+
 export default function DashboardPage() {
   const qc = useQueryClient()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['snapshot-latest'],
     queryFn: fetchLatest,
   })
+  const historyQ = useQuery({ queryKey: ['snapshot-history'], queryFn: fetchHistory })
 
   const refresh = useMutation({
     mutationFn: async () => {
@@ -62,7 +71,10 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error(`Refresh failed (HTTP ${res.status})`)
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['snapshot-latest'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['snapshot-latest'] })
+      qc.invalidateQueries({ queryKey: ['snapshot-history'] })
+    },
   })
 
   const [aiText, setAiText] = useState<string | null>(null)
@@ -84,6 +96,12 @@ export default function DashboardPage() {
   const orderedCats = [...categories].sort((a, b) => a.display_order - b.display_order)
   const core = orderedCats.filter((c) => c.is_core)
   const supporting = orderedCats.filter((c) => !c.is_core)
+
+  // Snapshot history → oscillator series (API is newest-first; chart wants oldest-first).
+  const snapAsc = [...(historyQ.data ?? [])].reverse()
+  const oscSeries: ChartSeries[] = [
+    { id: 'osc', name: 'Oscillator', points: snapAsc.map((s) => ({ t: s.created_at, v: s.oscillator_value })) },
+  ]
 
   const card = (c: (typeof categories)[number]) => {
     const cs = scoreByCat.get(c.id)
@@ -202,9 +220,13 @@ export default function DashboardPage() {
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
           Macro Regime Oscillator — History
         </p>
-        <div className="h-40 flex items-center justify-center rounded-lg bg-slate-800/50 border border-slate-800 border-dashed">
-          <p className="text-sm text-slate-600">Chart — Phase 7</p>
-        </div>
+        {historyQ.isLoading ? (
+          <div className="h-40 flex items-center justify-center rounded-lg bg-slate-800/40 border border-slate-800 border-dashed">
+            <p className="text-sm text-slate-600">Loading…</p>
+          </div>
+        ) : (
+          <LineChart series={oscSeries} height={180} />
+        )}
       </div>
 
       <div>
