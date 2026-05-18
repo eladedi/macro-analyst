@@ -53,6 +53,7 @@ export interface ComputedMetric {
   metricWeight: number
   weightedContribution: number
   value: number | null
+  changes: Changes | null
   freshness: Freshness
   confidence: ConfidenceLevel
 }
@@ -107,6 +108,7 @@ export function computeSnapshot(params: EngineParams): ComputedSnapshot {
       metricWeight: m.metricWeight,
       weightedContribution: metricContribution(score, m.metricWeight, cat.weight),
       value: m.changes?.value ?? null,
+      changes: m.changes,
       freshness: m.freshness,
       confidence: m.confidence,
     })

@@ -1,105 +1,193 @@
-import { PlaceholderBanner } from '@/components/ui/placeholder-banner'
-import { RegimeLabel } from '@/components/ui/regime-label'
-import type { RegimeLabel as RegimeLabelType } from '@/lib/store'
+'use client'
 
-const PLACEHOLDER_SNAPSHOTS: Array<{
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { RegimeLabel } from '@/components/ui/regime-label'
+
+interface SnapshotRow {
   id: string
-  date: string
-  score: number
-  oscillator: number
-  regime: RegimeLabelType
+  created_at: string
+  market_score: number
+  oscillator_value: number
+  regime_label: string
   trend: string
   confidence: string
-}> = [
-  { id: 'snap_001', date: '2026-05-17 09:00', score: 63, oscillator: 26, regime: 'Early Risk-On', trend: 'Improving', confidence: 'Medium' },
-  { id: 'snap_002', date: '2026-05-16 09:00', score: 58, oscillator: 16, regime: 'Neutral / Mixed', trend: 'Stable', confidence: 'Medium' },
-  { id: 'snap_003', date: '2026-05-15 09:00', score: 55, oscillator: 10, regime: 'Neutral / Mixed', trend: 'Improving', confidence: 'Low' },
-]
+  top_positive_signals: string[]
+  top_negative_signals: string[]
+}
+
+interface SnapshotDetail {
+  snapshot: SnapshotRow & { data_freshness: string; investor_posture: string | null }
+  category_scores: Array<{
+    category: string
+    raw_category_score: number
+    category_weight: number
+    weighted_contribution: number
+  }>
+  metrics: Array<{ metric_id: string; name: string; raw_score: number; trend: string; score_reason: string }>
+}
+
+async function fetchList() {
+  const res = await fetch('/api/snapshots?limit=30')
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json() as Promise<{ snapshots: SnapshotRow[] }>
+}
+
+async function fetchDetail(id: string) {
+  const res = await fetch(`/api/snapshots/${id}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json() as Promise<SnapshotDetail>
+}
 
 export default function SnapshotsPage() {
+  const [selected, setSelected] = useState<string | null>(null)
+  const list = useQuery({ queryKey: ['snapshots'], queryFn: fetchList })
+  const detail = useQuery({
+    queryKey: ['snapshot', selected],
+    queryFn: () => fetchDetail(selected as string),
+    enabled: !!selected,
+  })
+
+  const rows = list.data?.snapshots ?? []
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <PlaceholderBanner />
-
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-200">Snapshots</h1>
-        <p className="text-xs text-slate-500">Snapshots persist from Phase 6 onward</p>
+        <p className="text-xs text-slate-500">{rows.length} saved</p>
       </div>
 
-      {/* Snapshot list */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">History</p>
-          <span className="text-xs text-slate-600">{PLACEHOLDER_SNAPSHOTS.length} entries (placeholder)</span>
+      {list.isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {list.isError && <p className="text-sm text-red-400">Failed to load snapshots.</p>}
+      {!list.isLoading && rows.length === 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center">
+          <p className="text-sm text-slate-400">No snapshots yet — run a refresh from the dashboard.</p>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-800 bg-slate-900/60">
-              {['Date / Time', 'Score', 'Oscillator', 'Regime', 'Trend', 'Confidence', 'View'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {PLACEHOLDER_SNAPSHOTS.map((snap) => {
-              const oscStr = snap.oscillator > 0 ? `+${snap.oscillator}` : String(snap.oscillator)
-              return (
-                <tr key={snap.id} className="border-b border-slate-800/50 hover:bg-slate-900/50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-400">{snap.date}</td>
-                  <td className="px-4 py-3 font-bold tabular-nums text-white">{snap.score}</td>
-                  <td className="px-4 py-3 font-bold tabular-nums text-emerald-400">{oscStr}</td>
-                  <td className="px-4 py-3">
-                    <RegimeLabel label={snap.regime} size="sm" />
-                  </td>
-                  <td className="px-4 py-3 text-slate-400 capitalize">{snap.trend}</td>
-                  <td className="px-4 py-3 text-slate-400">{snap.confidence}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      disabled
-                      className="text-xs text-slate-600 cursor-not-allowed"
-                      title="Detail view — Phase 6"
+      )}
+
+      {rows.length > 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-800 bg-slate-900/60">
+                {['Date / Time', 'Score', 'Oscillator', 'Regime', 'Trend', 'Confidence', ''].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((s) => {
+                const open = selected === s.id
+                return (
+                  <tr
+                    key={s.id}
+                    onClick={() => setSelected(open ? null : s.id)}
+                    className={`border-b border-slate-800/50 cursor-pointer transition-colors ${
+                      open ? 'bg-slate-800/60' : 'hover:bg-slate-900/50'
+                    }`}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                      {new Date(s.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 font-bold tabular-nums text-white">
+                      {s.market_score.toFixed(1)}
+                    </td>
+                    <td className="px-4 py-3 font-bold tabular-nums text-emerald-400">
+                      {s.oscillator_value > 0 ? '+' : ''}
+                      {s.oscillator_value.toFixed(1)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <RegimeLabel label={s.regime_label} size="sm" />
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 capitalize">{s.trend}</td>
+                    <td className="px-4 py-3 text-slate-400 capitalize">{s.confidence}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{open ? 'Hide' : 'View'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {selected && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+            Snapshot Detail
+          </p>
+          {detail.isLoading && <p className="text-sm text-slate-500">Loading detail…</p>}
+          {detail.data && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500">Market Score</p>
+                  <p className="font-bold text-white">{detail.data.snapshot.market_score.toFixed(1)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Oscillator</p>
+                  <p className="font-bold text-emerald-400">
+                    {detail.data.snapshot.oscillator_value.toFixed(1)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Regime</p>
+                  <RegimeLabel label={detail.data.snapshot.regime_label} size="sm" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Posture</p>
+                  <p className="text-slate-300">{detail.data.snapshot.investor_posture ?? '—'}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-slate-500 mb-2">
+                  Category scores ({detail.data.category_scores.length})
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {detail.data.category_scores.map((c) => (
+                    <div
+                      key={c.category}
+                      className="flex items-center justify-between rounded bg-slate-800/50 px-3 py-1.5 text-sm"
                     >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                      <span className="text-slate-300">{c.category}</span>
+                      <span className="tabular-nums font-medium text-slate-200">
+                        {c.raw_category_score.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-      {/* Compare snapshots */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Compare Snapshots</p>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {['Snapshot A', 'Snapshot B'].map((label) => (
-            <div key={label}>
-              <label className="text-xs text-slate-500 block mb-1">{label}</label>
-              <select
-                disabled
-                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-400 cursor-not-allowed opacity-50"
-              >
-                <option>Select snapshot…</option>
-              </select>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-medium text-emerald-500 mb-1">Top positive</p>
+                  <ul className="text-sm text-slate-300 space-y-1">
+                    {(detail.data.snapshot.top_positive_signals ?? []).map((x) => (
+                      <li key={x}>• {x}</li>
+                    ))}
+                    {(detail.data.snapshot.top_positive_signals ?? []).length === 0 && (
+                      <li className="text-slate-600">—</li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-red-400 mb-1">Top negative</p>
+                  <ul className="text-sm text-slate-300 space-y-1">
+                    {(detail.data.snapshot.top_negative_signals ?? []).map((x) => (
+                      <li key={x}>• {x}</li>
+                    ))}
+                    {(detail.data.snapshot.top_negative_signals ?? []).length === 0 && (
+                      <li className="text-slate-600">—</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
             </div>
-          ))}
+          )}
         </div>
-        <button
-          disabled
-          className="w-full rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-500 cursor-not-allowed opacity-50"
-        >
-          Compare — Phase 6
-        </button>
-      </div>
-
-      {/* Weekly summary placeholder */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Weekly Summary</p>
-        <div className="flex items-center justify-center h-16 rounded-lg bg-slate-800/30 border border-slate-800 border-dashed">
-          <p className="text-sm text-slate-600">Weekly change summary — Phase 6</p>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

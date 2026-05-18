@@ -1,4 +1,5 @@
 import { PlaceholderBanner } from '@/components/ui/placeholder-banner'
+import { PromptEditor } from '@/components/settings/prompt-editor'
 
 const CATEGORY_WEIGHTS = [
   { name: 'Liquidity', weight: 16 },
@@ -23,13 +24,6 @@ const REGIME_THRESHOLDS = [
   { min: 35, max: 44, label: 'Weakening', posture: 'Defensive / Neutral' },
   { min: 20, max: 34, label: 'Risk-Off', posture: 'Defensive' },
   { min: 0, max: 19, label: 'Panic / Stress', posture: 'Panic Watch' },
-]
-
-const PROMPT_TEMPLATES = [
-  { slug: 'full_regime_interpretation', name: 'Full Regime Interpretation' },
-  { slug: 'metric_explanation', name: 'Metric Explanation' },
-  { slug: 'weekly_review', name: 'Weekly Review' },
-  { slug: 'crisis_mode', name: 'Crisis Mode' },
 ]
 
 function SectionHeader({ title, badge }: { title: string; badge?: string }) {
@@ -121,15 +115,8 @@ export default function SettingsPage() {
 
       {/* Prompt templates */}
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-        <SectionHeader title="AI Prompt Templates" badge="Editable in Phase 8" />
-        <div className="space-y-2">
-          {PROMPT_TEMPLATES.map((p) => (
-            <div key={p.slug} className="flex items-center justify-between rounded-lg bg-slate-800/50 px-3 py-2.5">
-              <span className="text-sm text-slate-300">{p.name}</span>
-              <span className="text-xs font-mono text-slate-600">{p.slug}</span>
-            </div>
-          ))}
-        </div>
+        <SectionHeader title="AI Prompt Templates" badge="Editable" />
+        <PromptEditor />
       </div>
 
       {/* Manual overrides placeholder */}

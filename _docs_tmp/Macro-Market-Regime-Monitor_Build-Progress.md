@@ -1,7 +1,7 @@
 # Macro Market Regime Monitor — Build Progress
 
 **File name:** `Macro-Market-Regime-Monitor_Build-Progress.md`
-**Status:** Phases 0–4 complete (Phase 4 verified, not yet committed) · Phase 5 next
+**Status:** Phases 0–5 complete, committed & pushed · Phase 6 in progress (scaffolding)
 **Last updated:** 2026-05-17
 **Source of truth:** `Macro-Market-Regime-Monitor_Product-Brief.md` + `..._MVP-Technical-Spec-v0.1.md` + `..._Implementation-Roadmap.md`
 
@@ -13,10 +13,11 @@
 ## 1. Summary
 
 The project is a Next.js 16 app backed by a live Supabase Postgres database.
-Phases 0–3 are committed and pushed to `origin/main`; Phase 4 is built and
-verified but not yet committed. The database schema (14 tables) is live and
-seeded with the full default, editable configuration, and real FRED data for
-the 9 FRED series is now flowing into `metric_values`.
+Phases 0–5 are committed and pushed to `origin/main`. The schema (14 tables)
+is live and seeded, real FRED data for the 9 FRED series is flowing into
+`metric_values`, and the scoring engine computes a full Market Score /
+Oscillator / regime from that data (verified, unit-tested). Phase 6 (the
+core refresh→persist snapshot loop) is scaffolded but not yet built.
 
 A user-requested feature beyond the original spec was added: an **"i" info
 button** on every metric and every dashboard category card.
@@ -134,7 +135,7 @@ User-requested, beyond the original spec docs.
 
 ---
 
-## 8. Phase 4 — FRED Integration  (built + verified, NOT yet committed)
+## 8. Phase 4 — FRED Integration  (commit `5f00be1`)
 
 - `lib/fetchers/fred.ts` — server-side FRED API client; fetches the latest
   120 observations per series (covers >3M for Phase 5 change calc), drops
@@ -168,16 +169,52 @@ statement (9 round-trips total) and a 15s FRED fetch timeout was added.
 - API key only read server-side; route is dynamic, not statically rendered.
 - Typecheck + production build clean.
 
-**Note on what is testable now:** Phase 4 only fetches/stores. The
-dashboard/metrics pages still show "—"; wiring the UI to live values is
-**Phase 6**. Verify Phase 4 via `npm run fetch:fred`, the
-`POST /api/fetch/fred` endpoint, or by querying `metric_values` in Supabase.
+**Note:** Phase 4 only fetches/stores; the UI still shows "—" until Phase 6
+wires it. Verify via `npm run fetch:fred`, `POST /api/fetch/fred`, or by
+querying `metric_values` in Supabase.
 
 ---
 
-## 9. Git History
+## 9. Phase 5 — Scoring Engine  (commit `f8b40b3`)
+
+Pure, unit-tested computation over the data already in the DB.
+
+- `lib/scoring/changes.ts` — 1D/1W/1M/3M absolute & % change (Spec §12).
+- `lib/scoring/rules.ts` — evaluates `scoring_rules.rule_config` (ordered,
+  first match wins, fallback, clamp to score_range; Spec §8.10).
+- `lib/scoring/regime.ts` — regime/posture selection (exact at integer
+  boundaries + correct for fractional scores), market & metric trend
+  (Spec §11/§12).
+- `lib/scoring/confidence.ts` — snapshot freshness/confidence aggregation
+  heuristic (Spec §14).
+- `lib/scoring/engine.ts` — category score, weighted-raw, Market Score,
+  Oscillator, per-metric contribution (Spec §10.2–§10.7).
+- `lib/scoring/compute-snapshot.ts` — composes the full computed snapshot.
+- `lib/scoring/scoring.test.ts` — 32 vitest tests (`npm test`).
+- `db/score-preview.ts` + `npm run score:preview` — read-only engine run
+  on live DB data (no persistence).
+
+**Design decision:** Spec §10.3 literally sums category×weight, but the MVP
+leaves Breadth (8%) + Sentiment (1%) unpopulated, which would silently cap
+the score at ~91% of range. The weighted-raw is therefore **normalized over
+active categories** (documented in `engine.ts`) — what the roadmap's
+"exclude disabled correctly" requires.
+
+**Verified:** 32/32 tests pass (Spec §10.4/§10.5 formulas, §10.7 worked
+example 2×0.70×0.08 = 0.112, regime boundaries, change calc, rule fallback,
+disabled exclusion). Live preview on real data: Market **54.7**, Oscillator
+**+9.41**, **Neutral / Mixed** (math hand-verified; confidence low / freshness
+stale because 8 non-FRED metrics have no data until Phase 9). Typecheck +
+build clean.
+
+---
+
+## 10. Git History
 
 ```
+f8b40b3  Phase 5: scoring engine — metric/category/market scores + tests
+5f00be1  Phase 4: FRED integration — fetch 9 series into metric_values
+4fb4049  Add build-progress doc covering Phases 0-3
 ba931f6  Phase 3: seed config + metric "i" info buttons
 26b956a  Phase 2: database — 14-table schema, migrations, data layer
 7b699b0  Phase 1: app skeleton — all routes, nav, and shared components
@@ -185,36 +222,41 @@ f5ff213  Phase 0: initialize Next.js 16 project with full stack setup
 f6caa23  Add Macro Market Regime Monitor spec documents
 ```
 
-Pushed to `origin/main` (https://github.com/eladedi/macro-analyst) through
-Phase 3. **Phase 4 is verified but not yet committed/pushed.**
+All pushed to `origin/main` (https://github.com/eladedi/macro-analyst)
+through Phase 5.
 
 ---
 
-## 10. How to Run
+## 11. How to Run
 
 ```
-npm run dev          # dev server at http://localhost:3000
-npm run build        # production build (also typechecks)
-npx tsc --noEmit     # typecheck only
+npm run dev           # dev server at http://localhost:3000
+npm run build         # production build (also typechecks)
+npx tsc --noEmit      # typecheck only
+npm test              # vitest unit tests (scoring engine)
 
-npm run db:migrate   # apply pending migrations
-npm run db:status    # applied / pending migrations
-npm run db:rollback  # revert last migration
-npm run db:smoke     # insert/select every table, then roll back
-npm run db:seed      # idempotent seed + Phase 3 acceptance checks
-npm run fetch:fred   # fetch 9 FRED series into metric_values (idempotent)
+npm run db:migrate    # apply pending migrations
+npm run db:status     # applied / pending migrations
+npm run db:rollback   # revert last migration
+npm run db:smoke      # insert/select every table, then roll back
+npm run db:seed       # idempotent seed + Phase 3 acceptance checks
+npm run fetch:fred    # fetch 9 FRED series into metric_values (idempotent)
+npm run score:preview # run scoring engine on live data (read-only)
 ```
 
 Scripts read `DATABASE_URL` and `FRED_API_KEY` from `.env.local` (gitignored).
 
 ---
 
-## 11. Next — Phase 5 (Scoring Engine)
+## 12. Next — Phase 6 (Snapshot Engine, the core MVP loop)
 
-**Goal:** turn the stored `metric_values` into scores — per-metric change
-calc (1D/1W/1M/3M), raw scores from `scoring_rules`, category scores, the
-final Market Score (0–100), the Oscillator (−100..+100), regime label, and
-trend vs the previous snapshot (Spec §10, §12, §14).
+**Goal:** `POST /api/snapshots/refresh` running the 14 steps (Spec §15.3):
+FRED fetch → load → score → **persist a full snapshot** across
+`snapshots`/`snapshot_metrics`/`metric_scores`/`category_scores` → "what
+changed" vs the previous snapshot. Plus the read APIs (`GET /api/snapshots`,
+`/:id`, `/api/metrics`, `/api/metrics/latest`) and wiring the
+Dashboard/Metrics/Snapshots pages to live data (the "—" placeholders go
+live; Refresh button works; trend computes vs the prior snapshot).
 
-No external blockers — all inputs (seeded rules + real FRED data) are in the
-database.
+In progress — tasks scaffolded, no code written yet. No external blockers.
+**End of Phase 6 = earliest usable product.**

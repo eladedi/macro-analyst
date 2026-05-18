@@ -14,9 +14,12 @@
     "db:smoke": "tsx --env-file=.env.local db/smoke.ts",
     "db:seed": "tsx --env-file=.env.local db/seed.ts",
     "fetch:fred": "tsx --env-file=.env.local db/fetch-fred.ts",
-    "score:preview": "tsx --env-file=.env.local db/score-preview.ts"
+    "score:preview": "tsx --env-file=.env.local db/score-preview.ts",
+    "snapshot:refresh": "tsx --env-file=.env.local db/snapshot-refresh.ts",
+    "ai:interpret": "tsx --env-file=.env.local db/ai-interpret.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "@supabase/supabase-js": "^2.105.4",
     "@tanstack/react-query": "^5.100.10",
     "@tanstack/react-table": "^8.21.3",
